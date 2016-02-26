@@ -1,24 +1,53 @@
-// Here is the starting point for your application code.
-// All stuff below is just to show you how it works. You can delete all of it.
+// This is main process of Electron, started as first thing when your
+// app starts. This script is running through entire life of your application.
+// It doesn't have any windows which you can see on screen, but we can open
+// window from here.
 
-// Use new ES6 modules syntax for everything.
-import os from 'os'; // native node.js module
-import { remote } from 'electron'; // native electron module
-import jetpack from 'fs-jetpack'; // module loaded from npm
-import { greet } from './hello_world/hello_world'; // code authored by you in this project
+import { app, BrowserWindow } from 'electron';
+import devHelper from './vendor/electron_boilerplate/dev_helper';
+import windowStateKeeper from './vendor/electron_boilerplate/window_state';
+
+// Special module holding environment variables which you declared
+// in config/env_xxx.json file.
 import env from './env';
 
-console.log('Loaded environment variables:', env);
+var mainWindow;
 
-var app = remote.app;
-var appDir = jetpack.cwd(app.getAppPath());
+// Preserver of the window size and position between app launches.
+var mainWindowState = windowStateKeeper('main', {
+    width: 1000,
+    height: 600
+});
 
-// Holy crap! This is browser window with HTML and stuff, but I can read
-// here files like it is node.js! Welcome to Electron world :)
-console.log('The author of this app is:', appDir.read('package.json', 'json').author);
+app.on('ready', function () {
 
-document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('greet').innerHTML = greet();
-    document.getElementById('platform-info').innerHTML = os.platform();
-    document.getElementById('env-name').innerHTML = env.name;
+    mainWindow = new BrowserWindow({
+        x: mainWindowState.x,
+        y: mainWindowState.y,
+        width: mainWindowState.width,
+        height: mainWindowState.height
+    });
+
+    if (mainWindowState.isMaximized) {
+        mainWindow.maximize();
+    }
+
+    if (env.name === 'test') {
+        mainWindow.loadURL('file://' + __dirname + '/spec.html');
+    } else {
+        mainWindow.loadURL('file://' + __dirname + '/index.html');
+    }
+
+    if (env.name !== 'production') {
+        devHelper.setDevMenu();
+        mainWindow.openDevTools();
+    }
+
+    mainWindow.on('close', function () {
+        mainWindowState.saveState(mainWindow);
+    });
+});
+
+app.on('window-all-closed', function () {
+    app.quit();
 });
